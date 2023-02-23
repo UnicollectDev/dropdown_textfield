@@ -1016,6 +1016,14 @@ class _SingleSelectionState extends State<SingleSelection> {
                   },
                   child: Container(
                     width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey[350]!,
+                          width: 1,
+                        ),
+                      ),
+                    ),
                     padding: EdgeInsets.only(
                         left: 10,
                         right: 10,
