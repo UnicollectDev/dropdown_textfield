@@ -471,10 +471,12 @@ class _DropDownTextFieldState extends State<DropDownTextField>
 
   @override
   void dispose() {
-    if (widget.searchFocusNode == null) _searchFocusNode.dispose();
-    if (widget.textFieldFocusNode == null) _textFieldFocusNode.dispose();
-    _cnt.dispose();
-    super.dispose();
+    try {
+      if (widget.searchFocusNode == null) _searchFocusNode.dispose();
+      if (widget.textFieldFocusNode == null) _textFieldFocusNode.dispose();
+      _cnt.dispose();
+      super.dispose();
+    } catch (err, stack) {}
   }
 
   clearFun() {
@@ -950,8 +952,10 @@ class _SingleSelectionState extends State<SingleSelection> {
 
   @override
   void dispose() {
-    _searchCnt.dispose();
-    super.dispose();
+    try {
+      _searchCnt.dispose();
+      super.dispose();
+    } catch (err, stack) {}
   }
 
   @override
@@ -1302,8 +1306,10 @@ class _KeyboardVisibilityBuilderState extends State<KeyboardVisibilityBuilder>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
+    try {
+      WidgetsBinding.instance.removeObserver(this);
+      super.dispose();
+    } catch (err, stack) {}
   }
 
   @override
