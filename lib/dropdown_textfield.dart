@@ -24,7 +24,6 @@ class CheckBoxProperty {
   final Color? hoverColor;
   final MaterialStateProperty<Color?>? overlayColor;
   final double? splashRadius;
-  final FocusNode? focusNode;
   final bool autofocus;
   final OutlinedBorder? shape;
   final BorderSide? side;
@@ -41,7 +40,6 @@ class CheckBoxProperty {
     this.splashRadius,
     this.materialTapTargetSize,
     this.visualDensity,
-    this.focusNode,
     this.autofocus = false,
     this.shape,
     this.side,
@@ -65,8 +63,6 @@ class DropDownTextField extends StatefulWidget {
       this.textFieldDecoration,
       this.dropDownIconProperty,
       this.dropDownItemCount = 6,
-      this.searchFocusNode,
-      this.textFieldFocusNode,
       this.searchAutofocus = false,
       this.searchDecoration,
       this.searchShowCursor,
@@ -113,8 +109,6 @@ class DropDownTextField extends StatefulWidget {
       this.dropDownIconProperty,
       this.textFieldDecoration,
       this.dropDownItemCount = 6,
-      this.searchFocusNode,
-      this.textFieldFocusNode,
       this.listSpace = 0,
       this.clearOption = true,
       this.clearIconProperty,
@@ -198,9 +192,6 @@ class DropDownTextField extends StatefulWidget {
   ///Maximum number of dropdown item to display,default value is 6
   final int dropDownItemCount;
 
-  final FocusNode? searchFocusNode;
-  final FocusNode? textFieldFocusNode;
-
   ///override default search decoration
   final InputDecoration? searchDecoration;
 
@@ -269,8 +260,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
   late List<DropDownValueModel> _dropDownList;
   late int _maxListItem;
   late double _searchWidgetHeight;
-  late FocusNode _searchFocusNode;
-  late FocusNode _textFieldFocusNode;
   late bool _isOutsideClickOverlay;
   late bool _isScrollPadding;
   final int _duration = 150;
@@ -288,8 +277,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     _searchAutofocus = false;
     _isScrollPadding = false;
     _isOutsideClickOverlay = false;
-    _searchFocusNode = widget.searchFocusNode ?? FocusNode();
-    _textFieldFocusNode = widget.textFieldFocusNode ?? FocusNode();
     _isExpanded = false;
     _controller = AnimationController(
       vsync: this,
@@ -298,29 +285,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     _heightFactor = _controller.drive(_easeInTween);
     _searchWidgetHeight = 60;
     _hintText = "Select Item";
-    _searchFocusNode.addListener(() {
-      if (!_searchFocusNode.hasFocus &&
-          !_textFieldFocusNode.hasFocus &&
-          _isExpanded &&
-          !widget.isMultiSelection) {
-        _isExpanded = !_isExpanded;
-        hideOverlay();
-      }
-    });
-    _textFieldFocusNode.addListener(() {
-      if (!_searchFocusNode.hasFocus &&
-          !_textFieldFocusNode.hasFocus &&
-          _isExpanded) {
-        _isExpanded = !_isExpanded;
-        hideOverlay();
-        if (!widget.readOnly &&
-            widget.singleController?.dropDownValue?.name != _cnt.text) {
-          setState(() {
-            _cnt.clear();
-          });
-        }
-      }
-    });
 
     for (int i = 0; i < widget.dropDownList.length; i++) {
       _multiSelectionValue.add(false);
@@ -471,12 +435,9 @@ class _DropDownTextFieldState extends State<DropDownTextField>
 
   @override
   void dispose() {
-    try {
-      if (widget.searchFocusNode == null) _searchFocusNode.dispose();
-      if (widget.textFieldFocusNode == null) _textFieldFocusNode.dispose();
-      _cnt.dispose();
-      super.dispose();
-    } catch (err, stack) {}
+    _controller.dispose();
+    _cnt.dispose();
+    super.dispose();
   }
 
   clearFun() {
@@ -522,7 +483,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
           link: _layerLink,
           child: TextFormField(
             controller: _cnt,
-            focusNode: _textFieldFocusNode,
             keyboardType: widget.keyboardType,
             autovalidateMode: widget.autovalidateMode,
             style: widget.textStyle,
@@ -589,7 +549,9 @@ class _DropDownTextFieldState extends State<DropDownTextField>
   }
 
   Future<void> _showOverlay() async {
-    _controller.forward();
+    if (mounted) {
+      _controller.forward();
+    }
     _isExpanded = true;
     final overlay = Overlay.of(context);
     final renderBox = context.findRenderObject() as RenderBox;
@@ -667,7 +629,7 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                 builder: buildOverlay,
               ))),
     );
-    overlay?.insert(_isScrollPadding ? _entry2! : _entry!);
+    overlay.insert(_isScrollPadding ? _entry2! : _entry!);
   }
 
   _openOutSideClickOverlay(BuildContext context) {
@@ -685,30 +647,31 @@ class _DropDownTextFieldState extends State<DropDownTextField>
         ),
       );
     });
-    overlay2?.insert(_barrierOverlay!);
+    overlay2.insert(_barrierOverlay!);
   }
 
   void hideOverlay() {
     if (!_isScrollPadding) {}
-    _controller.reverse().then<void>((void value) {
-      if (_entry != null && _entry!.mounted) {
-        _entry?.remove();
-        _entry = null;
-      }
-      if (_entry2 != null && _entry2!.mounted) {
-        _entry2?.remove();
-        _entry2 = null;
-      }
+    if (mounted) {
+      _controller.reverse().then<void>((void value) {
+        if (_entry != null && _entry!.mounted) {
+          _entry?.remove();
+          _entry = null;
+        }
+        if (_entry2 != null && _entry2!.mounted) {
+          _entry2?.remove();
+          _entry2 = null;
+        }
 
-      if (_barrierOverlay != null && _barrierOverlay!.mounted) {
-        _barrierOverlay?.remove();
-        _barrierOverlay = null;
-        _isOutsideClickOverlay = false;
-      }
-      _isScrollPadding = false;
-      _isExpanded = false;
-    });
-    _textFieldFocusNode.unfocus();
+        if (_barrierOverlay != null && _barrierOverlay!.mounted) {
+          _barrierOverlay?.remove();
+          _barrierOverlay = null;
+          _isOutsideClickOverlay = false;
+        }
+        _isScrollPadding = false;
+        _isExpanded = false;
+      });
+    }
   }
 
   void shiftOverlayEntry1to2() {
@@ -721,11 +684,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     }
     _isScrollPadding = true;
     _showOverlay();
-    _textFieldFocusNode.requestFocus();
-
-    Future.delayed(Duration(milliseconds: _duration), () {
-      _searchFocusNode.requestFocus();
-    });
   }
 
   void shiftOverlayEntry2to1() {
@@ -737,10 +695,11 @@ class _DropDownTextFieldState extends State<DropDownTextField>
       _barrierOverlay = null;
       _isOutsideClickOverlay = false;
     }
-    _controller.reset();
+    if (mounted) {
+      _controller.reset();
+    }
     _isScrollPadding = false;
     _showOverlay();
-    _textFieldFocusNode.requestFocus();
   }
 
   Widget buildOverlay(context, child) {
@@ -767,8 +726,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                   ? SingleSelection(
                       mainController: _cnt,
                       autoSort: !widget.readOnly,
-                      mainFocusNode: _textFieldFocusNode,
-                      searchFocusNode: _searchFocusNode,
                       enableSearch: widget.enableSearch,
                       height: _height,
                       listTileHeight: _listTileHeight,
@@ -865,36 +822,32 @@ class _DropDownTextFieldState extends State<DropDownTextField>
 }
 
 class SingleSelection extends StatefulWidget {
-  const SingleSelection(
-      {Key? key,
-      required this.dropDownList,
-      required this.onChanged,
-      required this.height,
-      required this.enableSearch,
-      required this.searchHeight,
-      required this.searchFocusNode,
-      required this.mainFocusNode,
-      this.searchKeyboardType,
-      required this.searchAutofocus,
-      this.searchShowCursor,
-      required this.mainController,
-      required this.autoSort,
-      required this.listTileHeight,
-      this.onSearchTap,
-      this.onSearchSubmit,
-      this.listTextStyle,
-      this.searchDecoration,
-      required this.listPadding,
-      this.clearIconProperty})
-      : super(key: key);
+  const SingleSelection({
+    Key? key,
+    required this.dropDownList,
+    required this.onChanged,
+    required this.height,
+    required this.enableSearch,
+    this.searchKeyboardType,
+    required this.searchAutofocus,
+    this.searchShowCursor,
+    required this.mainController,
+    required this.autoSort,
+    required this.listTileHeight,
+    this.onSearchTap,
+    this.onSearchSubmit,
+    this.listTextStyle,
+    this.searchDecoration,
+    required this.listPadding,
+    this.clearIconProperty,
+    required this.searchHeight,
+  }) : super(key: key);
   final List<DropDownValueModel> dropDownList;
   final ValueSetter onChanged;
   final double height;
   final double listTileHeight;
   final bool enableSearch;
   final double searchHeight;
-  final FocusNode searchFocusNode;
-  final FocusNode mainFocusNode;
   final TextInputType? searchKeyboardType;
   final bool searchAutofocus;
   final bool? searchShowCursor;
@@ -914,7 +867,6 @@ class SingleSelection extends StatefulWidget {
 class _SingleSelectionState extends State<SingleSelection> {
   late List<DropDownValueModel> newDropDownList;
   late TextEditingController _searchCnt;
-  late FocusScopeNode _focusScopeNode;
   late InputDecoration _inpDec;
   onItemChanged(String value) {
     setState(() {
@@ -931,12 +883,8 @@ class _SingleSelectionState extends State<SingleSelection> {
 
   @override
   void initState() {
-    _focusScopeNode = FocusScopeNode();
     _inpDec = widget.searchDecoration ?? InputDecoration();
-    if (widget.searchAutofocus) {
-      widget.searchFocusNode.requestFocus();
-    }
-    _focusScopeNode.requestFocus();
+
     newDropDownList = List.from(widget.dropDownList);
     _searchCnt = TextEditingController();
     if (widget.autoSort) {
@@ -952,10 +900,8 @@ class _SingleSelectionState extends State<SingleSelection> {
 
   @override
   void dispose() {
-    try {
-      _searchCnt.dispose();
-      super.dispose();
-    } catch (err, stack) {}
+    _searchCnt.dispose();
+    super.dispose();
   }
 
   @override
@@ -969,7 +915,6 @@ class _SingleSelectionState extends State<SingleSelection> {
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: TextField(
-                focusNode: widget.searchFocusNode,
                 showCursor: widget.searchShowCursor,
                 keyboardType: widget.searchKeyboardType,
                 controller: _searchCnt,
@@ -982,24 +927,14 @@ class _SingleSelectionState extends State<SingleSelection> {
                   hintText: _inpDec.hintText ?? 'Search Here...',
                   suffixIcon: GestureDetector(
                     onTap: () {
-                      widget.mainFocusNode.requestFocus();
                       _searchCnt.clear();
                       onItemChanged("");
                     },
-                    child: widget.searchFocusNode.hasFocus
-                        ? InkWell(
-                            child: Icon(
-                              widget.clearIconProperty?.icon ?? Icons.close,
-                              size: widget.clearIconProperty?.size,
-                              color: widget.clearIconProperty?.color,
-                            ),
-                          )
-                        : const SizedBox.shrink(),
+                    child: const SizedBox.shrink(),
                   ),
                 ),
                 onChanged: onItemChanged,
                 onSubmitted: (val) {
-                  widget.mainFocusNode.requestFocus();
                   if (widget.onSearchSubmit != null) {
                     widget.onSearchSubmit!();
                   }
@@ -1023,7 +958,7 @@ class _SingleSelectionState extends State<SingleSelection> {
                     decoration: BoxDecoration(
                       border: Border(
                         bottom: BorderSide(
-                          color: Colors.grey[350]!,
+                          color: Colors.grey[100] ?? Colors.grey,
                           width: 1,
                         ),
                       ),
@@ -1157,7 +1092,6 @@ class _MultiSelectionState extends State<MultiSelection> {
                                 widget.checkBoxProperty?.materialTapTargetSize,
                             visualDensity:
                                 widget.checkBoxProperty?.visualDensity,
-                            focusNode: widget.checkBoxProperty?.focusNode,
                             autofocus:
                                 widget.checkBoxProperty?.autofocus ?? false,
                             shape: widget.checkBoxProperty?.shape,
@@ -1306,10 +1240,8 @@ class _KeyboardVisibilityBuilderState extends State<KeyboardVisibilityBuilder>
 
   @override
   void dispose() {
-    try {
-      WidgetsBinding.instance.removeObserver(this);
-      super.dispose();
-    } catch (err, stack) {}
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
