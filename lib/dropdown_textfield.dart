@@ -972,8 +972,25 @@ class _SingleSelectionState extends State<SingleSelection> {
                       alignment: Alignment.centerLeft,
                       child: FittedBox(
                         fit: BoxFit.fitHeight,
-                        child: Text(newDropDownList[index].name,
-                            style: widget.listTextStyle),
+                        child: newDropDownList[index].description != null
+                            ? Row(
+                                children: [
+                                  Text(newDropDownList[index].name,
+                                      style: widget.listTextStyle),
+                                  Text(
+                                    newDropDownList[index].description ?? "",
+                                    style: widget.listTextStyle?.copyWith(
+                                      fontSize:
+                                          (widget.listTextStyle?.fontSize ??
+                                                  0) -
+                                              4,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Text(newDropDownList[index].name,
+                                style: widget.listTextStyle),
                       ),
                     ),
                   ),
@@ -1148,23 +1165,32 @@ class DropDownValueModel extends Equatable {
   ///as of now only added for multiselection dropdown
   final String? toolTipMsg;
 
-  const DropDownValueModel(
-      {required this.name, required this.value, this.toolTipMsg});
+  ///Added description for project settings dropdown
+  final String? description;
+
+  const DropDownValueModel({
+    required this.name,
+    required this.value,
+    this.toolTipMsg,
+    this.description,
+  });
 
   factory DropDownValueModel.fromJson(Map<String, dynamic> json) =>
       DropDownValueModel(
         name: json["name"],
         value: json["value"],
         toolTipMsg: json["toolTipMsg"],
+        description: json["description"],
       );
 
   Map<String, dynamic> toJson() => {
         "name": name,
         "value": value,
         "toolTipMsg": toolTipMsg,
+        "description": description,
       };
   @override
-  List<Object> get props => [name, value];
+  List<Object?> get props => [name, value, description];
 }
 
 class SingleValueDropDownController extends ChangeNotifier {
