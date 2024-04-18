@@ -9,6 +9,7 @@ class IconProperty {
   final IconData? icon;
   final Color? color;
   final double? size;
+
   IconProperty({this.icon, this.color, this.size});
 }
 
@@ -28,6 +29,7 @@ class CheckBoxProperty {
   final OutlinedBorder? shape;
   final BorderSide? side;
   static const double width = 18.0;
+
   CheckBoxProperty({
     this.tristate = false,
     this.mouseCursor,
@@ -63,6 +65,8 @@ class DropDownTextField extends StatefulWidget {
       this.textFieldDecoration,
       this.dropDownIconProperty,
       this.dropDownItemCount = 6,
+      this.searchFocusNode,
+      this.textFieldFocusNode,
       this.searchAutofocus = false,
       this.searchDecoration,
       this.searchShowCursor,
@@ -94,6 +98,7 @@ class DropDownTextField extends StatefulWidget {
         submitButtonText = null,
         submitButtonTextStyle = null,
         super(key: key);
+
   const DropDownTextField.multiSelection(
       {Key? key,
       this.controller,
@@ -109,6 +114,8 @@ class DropDownTextField extends StatefulWidget {
       this.dropDownIconProperty,
       this.textFieldDecoration,
       this.dropDownItemCount = 6,
+      this.searchFocusNode,
+      this.textFieldFocusNode,
       this.listSpace = 0,
       this.clearOption = true,
       this.clearIconProperty,
@@ -192,6 +199,10 @@ class DropDownTextField extends StatefulWidget {
   ///Maximum number of dropdown item to display,default value is 6
   final int dropDownItemCount;
 
+  final FocusNode? searchFocusNode;
+
+  final FocusNode? textFieldFocusNode;
+
   ///override default search decoration
   final InputDecoration? searchDecoration;
 
@@ -255,11 +266,14 @@ class _DropDownTextFieldState extends State<DropDownTextField>
   late AnimationController _controller;
   late Animation<double> _heightFactor;
   List<bool> _multiSelectionValue = [];
+
   // late String selectedItem;
   late double _height;
   late List<DropDownValueModel> _dropDownList;
   late int _maxListItem;
   late double _searchWidgetHeight;
+  late FocusNode _searchFocusNode;
+  late FocusNode _textFieldFocusNode;
   late bool _isOutsideClickOverlay;
   late bool _isScrollPadding;
   final int _duration = 150;
@@ -270,6 +284,7 @@ class _DropDownTextFieldState extends State<DropDownTextField>
   late double _keyboardHeight;
   late TextStyle _listTileTextStyle;
   late ListPadding _listPadding;
+
   @override
   void initState() {
     _cnt = TextEditingController();
@@ -277,6 +292,8 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     _searchAutofocus = false;
     _isScrollPadding = false;
     _isOutsideClickOverlay = false;
+    _searchFocusNode = widget.searchFocusNode ?? FocusNode();
+    _textFieldFocusNode = widget.textFieldFocusNode ?? FocusNode();
     _isExpanded = false;
     _controller = AnimationController(
       vsync: this,
@@ -285,6 +302,30 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     _heightFactor = _controller.drive(_easeInTween);
     _searchWidgetHeight = 60;
     _hintText = "Select Item";
+
+    _searchFocusNode.addListener(() {
+      if (!_searchFocusNode.hasFocus &&
+          !_textFieldFocusNode.hasFocus &&
+          _isExpanded &&
+          !widget.isMultiSelection) {
+        _isExpanded = !_isExpanded;
+        hideOverlay();
+      }
+    });
+    _textFieldFocusNode.addListener(() {
+      if (!_searchFocusNode.hasFocus &&
+          !_textFieldFocusNode.hasFocus &&
+          _isExpanded) {
+        _isExpanded = !_isExpanded;
+        hideOverlay();
+        if (!widget.readOnly &&
+            widget.singleController?.dropDownValue?.name != _cnt.text) {
+          setState(() {
+            _cnt.clear();
+          });
+        }
+      }
+    });
 
     for (int i = 0; i < widget.dropDownList.length; i++) {
       _multiSelectionValue.add(false);
@@ -344,25 +385,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
             _multiSelectionValue.add(false);
           }
         }
-        // if (widget.isForceMultiSelectionClear &&
-        //     _multiSelectionValue.isNotEmpty) {
-        //   _multiSelectionValue = [];
-        //   _cnt.text = "";
-        //   for (int i = 0; i < _dropDownList.length; i++) {
-        //     _multiSelectionValue.add(false);
-        //   }
-        // }
-
-        // if (widget.multiController != null) {
-        //   List<DropDownValueModel> multiCnt = [];
-        //   for (int i = 0; i < dropDownList.length; i++) {
-        //     if (multiSelectionValue[i]) {
-        //       multiCnt.add(dropDownList[i]);
-        //     }
-        //   }
-        //   widget.multiController!
-        //       .setDropDown(multiCnt.isNotEmpty ? multiCnt : null);
-        // }
 
         if (widget.multiController != null) {
           if (oldWidget != null &&
@@ -409,7 +431,7 @@ class _DropDownTextFieldState extends State<DropDownTextField>
       }
 
       _listTileTextStyle =
-          (widget.listTextStyle ?? Theme.of(context).textTheme.subtitle1)!;
+          (widget.listTextStyle ?? Theme.of(context).textTheme.titleMedium)!;
       _listTileHeight =
           _textWidgetSize("dummy Text", _listTileTextStyle).height +
               _listPadding.top +
@@ -436,6 +458,8 @@ class _DropDownTextFieldState extends State<DropDownTextField>
   @override
   void dispose() {
     _controller.dispose();
+    _searchFocusNode.dispose();
+    _textFieldFocusNode.dispose();
     _cnt.dispose();
     super.dispose();
   }
@@ -481,67 +505,79 @@ class _DropDownTextFieldState extends State<DropDownTextField>
         }
         return CompositedTransformTarget(
           link: _layerLink,
-          child: TextFormField(
-            controller: _cnt,
-            keyboardType: widget.keyboardType,
-            autovalidateMode: widget.autovalidateMode,
-            style: widget.textStyle,
-            enabled: widget.isEnabled,
-            readOnly: widget.readOnly,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
             onTap: () {
               _searchAutofocus = widget.searchAutofocus;
               if (!_isExpanded) {
                 if (_dropDownList.isNotEmpty) {
                   _showOverlay();
                 }
+                _textFieldFocusNode.requestFocus();
               } else {
                 if (widget.readOnly) hideOverlay();
               }
             },
-            validator: (value) =>
-                widget.validator != null ? widget.validator!(value) : null,
-            decoration: widget.textFieldDecoration != null
-                ? widget.textFieldDecoration!.copyWith(
-                    suffixIcon: (_cnt.text.isEmpty || !widget.clearOption)
-                        ? Icon(
-                            widget.dropDownIconProperty?.icon ??
-                                Icons.arrow_drop_down_outlined,
-                            size: widget.dropDownIconProperty?.size,
-                            color: widget.dropDownIconProperty?.color,
-                          )
-                        : widget.clearOption
-                            ? InkWell(
-                                onTap: clearFun,
-                                child: Icon(
-                                  widget.clearIconProperty?.icon ?? Icons.clear,
-                                  size: widget.clearIconProperty?.size,
-                                  color: widget.clearIconProperty?.color,
-                                ),
-                              )
-                            : null,
-                  )
-                : InputDecoration(
-                    floatingLabelBehavior: FloatingLabelBehavior.always,
-                    hintText: _hintText,
-                    hintStyle: const TextStyle(fontWeight: FontWeight.normal),
-                    suffixIcon: (_cnt.text.isEmpty || !widget.clearOption)
-                        ? Icon(
-                            widget.dropDownIconProperty?.icon ??
-                                Icons.arrow_drop_down_outlined,
-                            size: widget.dropDownIconProperty?.size,
-                            color: widget.dropDownIconProperty?.color,
-                          )
-                        : widget.clearOption
-                            ? InkWell(
-                                onTap: clearFun,
-                                child: Icon(
-                                  widget.clearIconProperty?.icon ?? Icons.clear,
-                                  size: widget.clearIconProperty?.size,
-                                  color: widget.clearIconProperty?.color,
-                                ),
-                              )
-                            : null,
-                  ),
+            child: Focus(
+              focusNode: _textFieldFocusNode,
+              child: IgnorePointer(
+                child: TextFormField(
+                  controller: _cnt,
+                  keyboardType: widget.keyboardType,
+                  autovalidateMode: widget.autovalidateMode,
+                  style: widget.textStyle,
+                  enabled: widget.isEnabled,
+                  readOnly: widget.readOnly,
+                  validator: (value) =>
+                      widget.validator != null ? widget.validator!(value) : null,
+                  decoration: widget.textFieldDecoration != null
+                      ? widget.textFieldDecoration!.copyWith(
+                          suffixIcon: (_cnt.text.isEmpty || !widget.clearOption)
+                              ? Icon(
+                                  widget.dropDownIconProperty?.icon ??
+                                      Icons.arrow_drop_down_outlined,
+                                  size: widget.dropDownIconProperty?.size,
+                                  color: widget.dropDownIconProperty?.color,
+                                )
+                              : widget.clearOption
+                                  ? InkWell(
+                                      onTap: clearFun,
+                                      child: Icon(
+                                        widget.clearIconProperty?.icon ??
+                                            Icons.clear,
+                                        size: widget.clearIconProperty?.size,
+                                        color: widget.clearIconProperty?.color,
+                                      ),
+                                    )
+                                  : null,
+                        )
+                      : InputDecoration(
+                          floatingLabelBehavior: FloatingLabelBehavior.always,
+                          hintText: _hintText,
+                          hintStyle:
+                              const TextStyle(fontWeight: FontWeight.normal),
+                          suffixIcon: (_cnt.text.isEmpty || !widget.clearOption)
+                              ? Icon(
+                                  widget.dropDownIconProperty?.icon ??
+                                      Icons.arrow_drop_down_outlined,
+                                  size: widget.dropDownIconProperty?.size,
+                                  color: widget.dropDownIconProperty?.color,
+                                )
+                              : widget.clearOption
+                                  ? InkWell(
+                                      onTap: clearFun,
+                                      child: Icon(
+                                        widget.clearIconProperty?.icon ??
+                                            Icons.clear,
+                                        size: widget.clearIconProperty?.size,
+                                        color: widget.clearIconProperty?.color,
+                                      ),
+                                    )
+                                  : null,
+                        ),
+                ),
+              ),
+            ),
           ),
         );
       },
@@ -671,6 +707,7 @@ class _DropDownTextFieldState extends State<DropDownTextField>
         _isScrollPadding = false;
         _isExpanded = false;
       });
+      _textFieldFocusNode.unfocus();
     }
   }
 
@@ -684,6 +721,10 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     }
     _isScrollPadding = true;
     _showOverlay();
+
+    Future.delayed(Duration(milliseconds: _duration), () {
+      _searchFocusNode.requestFocus();
+    });
   }
 
   void shiftOverlayEntry2to1() {
@@ -700,6 +741,7 @@ class _DropDownTextFieldState extends State<DropDownTextField>
     }
     _isScrollPadding = false;
     _showOverlay();
+    _textFieldFocusNode.requestFocus();
   }
 
   Widget buildOverlay(context, child) {
@@ -726,6 +768,8 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                   ? SingleSelection(
                       mainController: _cnt,
                       autoSort: !widget.readOnly,
+                      mainFocusNode: _textFieldFocusNode,
+                      searchFocusNode: _searchFocusNode,
                       enableSearch: widget.enableSearch,
                       height: _height,
                       listTileHeight: _listTileHeight,
@@ -752,20 +796,6 @@ class _DropDownTextFieldState extends State<DropDownTextField>
                       searchDecoration: widget.searchDecoration,
                       searchShowCursor: widget.searchShowCursor,
                       listPadding: _listPadding,
-                      // onSearchTap: () {
-                      //   double posFromBot =
-                      //       MediaQuery.of(context).size.height - _offset.dy;
-                      //   if (posFromBot < _keyboardHeight &&
-                      //       !_isScrollPadding &&
-                      //       _isPortrait) {
-                      //     shiftOverlayEntry1to2();
-                      //   }
-                      // },
-                      // onSearchSubmit: () {
-                      //   if (_isScrollPadding) {
-                      //     shiftOverlayEntry2to1();
-                      //   }
-                      // },
                       clearIconProperty: widget.clearIconProperty,
                     )
                   : MultiSelection(
@@ -830,6 +860,8 @@ class SingleSelection extends StatefulWidget {
     required this.enableSearch,
     this.searchKeyboardType,
     required this.searchAutofocus,
+    required this.mainFocusNode,
+    required this.searchFocusNode,
     this.searchShowCursor,
     required this.mainController,
     required this.autoSort,
@@ -842,6 +874,7 @@ class SingleSelection extends StatefulWidget {
     this.clearIconProperty,
     required this.searchHeight,
   }) : super(key: key);
+
   final List<DropDownValueModel> dropDownList;
   final ValueSetter onChanged;
   final double height;
@@ -851,6 +884,8 @@ class SingleSelection extends StatefulWidget {
   final TextInputType? searchKeyboardType;
   final bool searchAutofocus;
   final bool? searchShowCursor;
+  final FocusNode mainFocusNode;
+  final FocusNode searchFocusNode;
   final TextEditingController mainController;
   final bool autoSort;
   final Function? onSearchTap;
@@ -868,6 +903,7 @@ class _SingleSelectionState extends State<SingleSelection> {
   late List<DropDownValueModel> newDropDownList;
   late TextEditingController _searchCnt;
   late InputDecoration _inpDec;
+
   onItemChanged(String value) {
     setState(() {
       if (value.isEmpty) {
@@ -884,7 +920,9 @@ class _SingleSelectionState extends State<SingleSelection> {
   @override
   void initState() {
     _inpDec = widget.searchDecoration ?? InputDecoration();
-
+    if (widget.searchAutofocus) {
+      widget.searchFocusNode.requestFocus();
+    }
     newDropDownList = List.from(widget.dropDownList);
     _searchCnt = TextEditingController();
     if (widget.autoSort) {
@@ -915,6 +953,7 @@ class _SingleSelectionState extends State<SingleSelection> {
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: TextField(
+                focusNode: widget.searchFocusNode,
                 showCursor: widget.searchShowCursor,
                 keyboardType: widget.searchKeyboardType,
                 controller: _searchCnt,
@@ -927,6 +966,7 @@ class _SingleSelectionState extends State<SingleSelection> {
                   hintText: _inpDec.hintText ?? 'Search Here...',
                   suffixIcon: GestureDetector(
                     onTap: () {
+                      widget.mainFocusNode.requestFocus();
                       _searchCnt.clear();
                       onItemChanged("");
                     },
@@ -935,6 +975,7 @@ class _SingleSelectionState extends State<SingleSelection> {
                 ),
                 onChanged: onItemChanged,
                 onSubmitted: (val) {
+                  widget.mainFocusNode.requestFocus();
                   if (widget.onSearchSubmit != null) {
                     widget.onSearchSubmit!();
                   }
@@ -981,8 +1022,7 @@ class _SingleSelectionState extends State<SingleSelection> {
                                     newDropDownList[index].description ?? "",
                                     style: widget.listTextStyle?.copyWith(
                                       fontSize:
-                                          (widget.listTextStyle?.fontSize ??
-                                                  0) -
+                                          (widget.listTextStyle?.fontSize ?? 0) -
                                               4,
                                       color: Colors.grey,
                                     ),
@@ -1189,15 +1229,18 @@ class DropDownValueModel extends Equatable {
         "toolTipMsg": toolTipMsg,
         "description": description,
       };
+
   @override
   List<Object?> get props => [name, value, description];
 }
 
 class SingleValueDropDownController extends ChangeNotifier {
   DropDownValueModel? dropDownValue;
+
   SingleValueDropDownController({DropDownValueModel? data}) {
     setDropDown(data);
   }
+
   setDropDown(DropDownValueModel? model) {
     dropDownValue = model;
     notifyListeners();
@@ -1211,9 +1254,11 @@ class SingleValueDropDownController extends ChangeNotifier {
 
 class MultiValueDropDownController extends ChangeNotifier {
   List<DropDownValueModel>? dropDownValueList;
+
   MultiValueDropDownController({List<DropDownValueModel>? data}) {
     setDropDown(data);
   }
+
   setDropDown(List<DropDownValueModel>? modelList) {
     if (modelList != null && modelList.isNotEmpty) {
       List<DropDownValueModel> list = [];
@@ -1238,6 +1283,7 @@ class MultiValueDropDownController extends ChangeNotifier {
 class ListPadding {
   double top;
   double bottom;
+
   ListPadding({this.top = 15, this.bottom = 15});
 }
 
@@ -1246,10 +1292,12 @@ class KeyboardVisibilityBuilder extends StatefulWidget {
     BuildContext context,
     bool isKeyboardVisible,
   ) builder;
+
   const KeyboardVisibilityBuilder({
     Key? key,
     required this.builder,
   }) : super(key: key);
+
   @override
   _KeyboardVisibilityBuilderState createState() =>
       _KeyboardVisibilityBuilderState();
@@ -1258,6 +1306,7 @@ class KeyboardVisibilityBuilder extends StatefulWidget {
 class _KeyboardVisibilityBuilderState extends State<KeyboardVisibilityBuilder>
     with WidgetsBindingObserver {
   var _isKeyboardVisible = false;
+
   @override
   void initState() {
     super.initState();
@@ -1272,7 +1321,7 @@ class _KeyboardVisibilityBuilderState extends State<KeyboardVisibilityBuilder>
 
   @override
   void didChangeMetrics() {
-    final bottomInset = WidgetsBinding.instance.window.viewInsets.bottom;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final newValue = bottomInset > 0.0;
     if (newValue != _isKeyboardVisible) {
       setState(() {
