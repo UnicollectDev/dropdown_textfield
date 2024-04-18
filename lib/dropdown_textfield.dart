@@ -985,56 +985,58 @@ class _SingleSelectionState extends State<SingleSelection> {
           ),
         SizedBox(
           height: widget.height,
-          child: ListView.builder(
-            padding: EdgeInsets.zero,
-            itemCount: newDropDownList.length,
-            itemBuilder: (BuildContext context, int index) {
-              return InkWell(
-                onTap: () {
-                  widget.onChanged(newDropDownList[index]);
-                },
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(
-                        color: Colors.grey[100] ?? Colors.grey,
-                        width: 1,
+          child: Scrollbar(
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: newDropDownList.length,
+              itemBuilder: (BuildContext context, int index) {
+                return InkWell(
+                  onTap: () {
+                    widget.onChanged(newDropDownList[index]);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: Colors.grey[100] ?? Colors.grey,
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                    padding: EdgeInsets.only(
+                        left: 10,
+                        right: 10,
+                        bottom: widget.listPadding.bottom,
+                        top: widget.listPadding.top),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FittedBox(
+                        fit: BoxFit.fitHeight,
+                        child: newDropDownList[index].description != null
+                            ? Row(
+                                children: [
+                                  Text(newDropDownList[index].name,
+                                      style: widget.listTextStyle),
+                                  Text(
+                                    newDropDownList[index].description ?? "",
+                                    style: widget.listTextStyle?.copyWith(
+                                      fontSize:
+                                          (widget.listTextStyle?.fontSize ?? 0) -
+                                              4,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : Text(newDropDownList[index].name,
+                                style: widget.listTextStyle),
                       ),
                     ),
                   ),
-                  padding: EdgeInsets.only(
-                      left: 10,
-                      right: 10,
-                      bottom: widget.listPadding.bottom,
-                      top: widget.listPadding.top),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: FittedBox(
-                      fit: BoxFit.fitHeight,
-                      child: newDropDownList[index].description != null
-                          ? Row(
-                              children: [
-                                Text(newDropDownList[index].name,
-                                    style: widget.listTextStyle),
-                                Text(
-                                  newDropDownList[index].description ?? "",
-                                  style: widget.listTextStyle?.copyWith(
-                                    fontSize:
-                                        (widget.listTextStyle?.fontSize ?? 0) -
-                                            4,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Text(newDropDownList[index].name,
-                              style: widget.listTextStyle),
-                    ),
-                  ),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ),
       ],
